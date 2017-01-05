@@ -1,11 +1,11 @@
 package com.vossie.elasticsearch.annotations.util;
 
 import com.vossie.elasticsearch.annotations.ElasticsearchDocument;
-import com.vossie.elasticsearch.annotations.ElasticsearchField;
+import com.vossie.elasticsearch.annotations.ESMetaField;
 import com.vossie.elasticsearch.annotations.ElasticsearchMapping;
 import com.vossie.elasticsearch.annotations.common.Empty;
 import com.vossie.elasticsearch.annotations.enums.ElasticsearchAnnotationTypeNames;
-import com.vossie.elasticsearch.annotations.enums.FieldName;
+import com.vossie.elasticsearch.annotations.enums.MetaFieldName;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
@@ -60,9 +60,9 @@ public class ElasticSearchDocumentAnnotationProcessor extends AbstractProcessor 
      */
     private boolean verifyDuplicateElasticsearchFieldAnnotations(ElasticsearchDocument elasticsearchDocument, String className) {
 
-        List<FieldName> fieldNames = new ArrayList<>();
+        List<MetaFieldName> fieldNames = new ArrayList<>();
 
-        for(ElasticsearchField elasticsearchField : elasticsearchDocument._elasticsearchFields()) {
+        for(ESMetaField elasticsearchField : elasticsearchDocument._elasticsearchFields()) {
 
             if(fieldNames.contains(elasticsearchField._fieldName())) {
                 throw new RuntimeException(String.format("Class %s is using duplicate annotated Elasticsearch fields %s. ", className, elasticsearchField._fieldName().toString()));
@@ -73,10 +73,11 @@ public class ElasticSearchDocumentAnnotationProcessor extends AbstractProcessor 
         return true;
     }
 
-    private void validateParentType(ElasticsearchDocument elasticsearchDocument) {
+    @SuppressWarnings("unused")
+	private void validateParentType(ElasticsearchDocument elasticsearchDocument) {
 
-        for (ElasticsearchField elasticsearchField : elasticsearchDocument._elasticsearchFields()) {
-            if (!elasticsearchField._fieldName().equals(FieldName._PARENT.toString()))
+        for (ESMetaField elasticsearchField : elasticsearchDocument._elasticsearchFields()) {
+            if (!elasticsearchField._fieldName().equals(MetaFieldName._PARENT.toString()))
                 continue;
 
             if(elasticsearchField.type().toString().equals(Empty.class.toString()))

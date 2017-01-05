@@ -1,16 +1,21 @@
 package com.vossie.elasticsearch.annotations.common;
 
-import com.vossie.elasticsearch.annotations.ElasticsearchMapping;
-import com.vossie.elasticsearch.annotations.ElasticsearchMultiFieldType;
-import com.vossie.elasticsearch.annotations.enums.FieldName;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.slf4j.LoggerFactory;
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+import org.apache.log4j.Logger;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.springframework.core.annotation.AnnotationUtils;
+
+import com.vossie.elasticsearch.annotations.ElasticsearchMapping;
+import com.vossie.elasticsearch.annotations.enums.BooleanValue;
+import com.vossie.elasticsearch.annotations.enums.DateFormat;
+import com.vossie.elasticsearch.annotations.enums.FieldDatatype;
+import com.vossie.elasticsearch.annotations.enums.MetaFieldName;
 
 /**
  * Copyright © 2013 GSMA. GSM and the GSM Logo are registered and owned by the GSMA.
@@ -20,7 +25,7 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
  */
 public final class MetadataXContentBuilder {
 
-    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(MetadataXContentBuilder.class);
+    private static final Logger logger = Logger.getLogger(MetadataXContentBuilder.class);
 
     private static HashMap<String, XContentBuilder> cache = new HashMap<>();
 
@@ -47,17 +52,15 @@ public final class MetadataXContentBuilder {
 
                 for(String attributeName : field.getAttributes().keySet()) {
 
-                    if(fieldName.equals(FieldName._PARENT.toString()) && attributeName.equals("type")) {
+                    if(fieldName.equals(MetaFieldName._PARENT.toString()) && attributeName.equals("type")) {
 
                         xbMapping.field(
                                 attributeName,
                                 elasticsearchDocumentMetadata.getParent().getTypeName()
                         );
-                    }
-                    else if(field.getAttributes().get(attributeName).getClass().isArray()) {
+                    }else if(field.getAttributes().get(attributeName).getClass().isArray()) {
                         xbMapping.field(attributeName,field.getAttributes().get(attributeName));
-                    }
-                    else
+                    }else
                         xbMapping.field(attributeName,field.getAttributes().get(attributeName).toString());
                 }
 
@@ -66,11 +69,11 @@ public final class MetadataXContentBuilder {
 
             // Add the fields.
             setXContentBuilderFields(xbMapping, elasticsearchDocumentMetadata.getProperties());
-
+           
             // End
             xbMapping
-                    .endObject()
-                    .endObject();
+            	.endObject()
+                   .endObject();
 
             // Add to local cache.
             cache.put(key, xbMapping);
@@ -82,7 +85,6 @@ public final class MetadataXContentBuilder {
             return null;
         }
     }
-
     /**
      * Populate the child field nodes.
      * @param xbMapping The content builder to use.
@@ -102,13 +104,13 @@ public final class MetadataXContentBuilder {
                 ElasticsearchNodeMetadata elasticsearchField = fields.get(fieldName);
 
                 xbMapping.startObject(elasticsearchField.getFieldName());
-                    setFields(elasticsearchField, xbMapping);
-                    setXContentBuilderFields(xbMapping, elasticsearchField.getChildren());
+                setFields(elasticsearchField, xbMapping);
+       
+                setXContentBuilderFields(xbMapping, elasticsearchField.getChildren());
                 xbMapping.endObject();
             }
 
             xbMapping.endObject();
-
         } catch (IOException e) {
             throw new RuntimeException("");
         }
@@ -117,34 +119,76 @@ public final class MetadataXContentBuilder {
     private static void setFields(ElasticsearchNodeMetadata elasticsearchField, XContentBuilder xbMapping) throws IOException {
 
         for(String attribute : elasticsearchField.getAttributes().keySet()) {
+        	
             Object values = elasticsearchField.getAttributes().get(attribute);
 
-            if(ElasticsearchMultiFieldType[].class.isAssignableFrom(values.getClass())) {
+           /* if(MultiFieldType[].class.isAssignableFrom(values.getClass())) {
 
                 xbMapping.startObject(attribute);
-                for(ElasticsearchMultiFieldType fieldType:  (ElasticsearchMultiFieldType[]) values) {
-
-                    xbMapping.startObject(fieldType._name());
-                    setElasticsearchMultiFieldType(fieldType, xbMapping);
-                    xbMapping.endObject();
+                for(MultiFieldType fieldType:  (MultiFieldType[]) values) {
+                    setElasticsearchParamenters(fieldType, xbMapping,fieldType._name());
                 }
                 xbMapping.endObject();
-            }
-            else {
+            }*/
+            if(values instanceof Annotation[]){
+            	xbMapping.startObject(attribute);
+            	for(Annotation annotation:( Annotation[])values){
+            		Map<String, Object> allAttributes = AnnotationUtils.getAnnotationAttributes(annotation);
+            		setElasticsearchParamenters(annotation,xbMapping,allAttributes.get("_name").toString());
+            	}
+            	xbMapping.endObject();
+            }else if(values instanceof Annotation){
+            	setElasticsearchParamenters(values,xbMapping,attribute);
+            }else {
                 xbMapping.field(attribute, elasticsearchField.getAttributes().get(attribute));
             }
         }
     }
+    private static boolean hadValue(Annotation data){
+    	boolean hadValue=false; 
+    	Map<String, Object> allAttributes = AnnotationUtils.getAnnotationAttributes(data);
+    	for(java.util.Map.Entry<String, Object> attr:allAttributes.entrySet()){
+    		if(attr.getValue() instanceof Annotation){
+    			hadValue=hadValue((Annotation)attr.getValue());
+    		}else{
+    			if(!(attr.getValue().equals(Empty.NULL)||
+    					attr.getValue().equals(BooleanValue.NULL))||
+    					attr.getValue().equals(FieldDatatype.NULL)||
+    					attr.getValue().equals(DateFormat.NULL)){
+    				hadValue=true;
+    			}
+    		}
+    		if(hadValue)break;
+    	}
+    	return hadValue;
+    }
 
-    private static void setElasticsearchMultiFieldType(ElasticsearchMultiFieldType fieldType, XContentBuilder xbMapping) throws IOException {
+    private static void setElasticsearchParamenters(Object data,XContentBuilder xbMapping,String attribute) throws IOException{
+    	if(!hadValue((Annotation)data)){
+    		return;
+    	}
+    	 xbMapping.startObject(attribute);
+    	 if(data instanceof Annotation){
+    		 Map<String, Object> allAttributes = AnnotationUtils.getAnnotationAttributes((Annotation)data);
+    		 for(java.util.Map.Entry<String, Object> attr:allAttributes.entrySet()){
+    			 
+    			 if(attr.getValue() instanceof Annotation){
+    				 setElasticsearchParamenters(attr.getValue(),xbMapping,attr.getKey().toLowerCase());
+    			 }else{
+    				if(!(attr.getValue().equals(Empty.NULL)||
+    						attr.getValue().equals(BooleanValue.NULL)||
+    						attr.getValue().equals(FieldDatatype.NULL)||
+    						attr.getValue().equals(DateFormat.NULL))){
+    					if(attr.getKey().toLowerCase().equals("_name")){
+    					}else{
+    						xbMapping.field(attr.getKey().toLowerCase(), attr.getValue());
+    					}
+    					
+    				} 
+    			 }
+    		 }
+    	 }
 
-        if(!fieldType.index().equals(Empty.NULL))
-            xbMapping.field("index", fieldType.index());
-
-        if(!fieldType.type().equals(Empty.NULL))
-            xbMapping.field("type", fieldType.type());
-
-        if(!fieldType.analyzer().equals(Empty.NULL))
-            xbMapping.field("analyzer", fieldType.analyzer());
+    	xbMapping.endObject();
     }
 }

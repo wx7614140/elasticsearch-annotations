@@ -1,16 +1,25 @@
 package com.vossie.elasticsearch.annotations;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.vossie.elasticsearch.annotations.common.ElasticsearchAlias;
 import com.vossie.elasticsearch.annotations.common.ElasticsearchDocumentMetadata;
 import com.vossie.elasticsearch.annotations.common.ElasticsearchIndexMetadata;
 import com.vossie.elasticsearch.annotations.common.ElasticsearchNodeMetadata;
 import com.vossie.elasticsearch.annotations.common.Empty;
-import com.vossie.elasticsearch.annotations.enums.FieldType;
-import scala.Option;
+import com.vossie.elasticsearch.annotations.enums.FieldDatatype;
+import com.vossie.elasticsearch.annotations.mappingparameters.ESMappingProperties;
+import com.vossie.elasticsearch.constants.Constants;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.*;
+import scala.Option;
 
 /**
  * Copyright © 2013 Carel Vosloo.
@@ -20,7 +29,7 @@ import java.util.*;
  */
 public abstract class ElasticsearchMapping {
 
-    private static final HashMap<Class<?>, ElasticsearchDocumentMetadata> mappingCache = new HashMap<>();
+    private static final HashMap<String, ElasticsearchDocumentMetadata> mappingCache = new HashMap<>();
     private static final HashMap<String, ElasticsearchIndexMetadata> indexCache = new HashMap<>();
 
     public static final String OBJECT_PROPERTIES= "properties";
@@ -35,21 +44,24 @@ public abstract class ElasticsearchMapping {
 
         return clazz.getAnnotation(ElasticsearchDocument.class);
     }
-
+    private static ElasticsearchAlias getElasticsearchAliases(Class<?> clazz){
+    	return new ElasticsearchAlias(clazz);
+    }
+    
     /**
      * Get the ElasticsearchDocument annotations for the provided class object.
      * @param clazz The class to inspect.
      * @return The ElasticsearchDocument details
      *
      */
-    private static ElasticsearchIndex getElasticsearchIndex(final Class<?> clazz) {
+    private static ESIndex getElasticsearchIndex(final Class<?> clazz) {
 
-        ElasticsearchIndex elasticsearchIndex = clazz.getAnnotation(ElasticsearchIndex.class);
+        ESIndex elasticsearchIndex = clazz.getAnnotation(ESIndex.class);
 
         if(elasticsearchIndex != null)
             return elasticsearchIndex;
 
-        elasticsearchIndex = clazz.getSuperclass().getAnnotation(ElasticsearchIndex.class);
+        elasticsearchIndex = clazz.getSuperclass().getAnnotation(ESIndex.class);
 
         return elasticsearchIndex;
     }
@@ -103,7 +115,7 @@ public abstract class ElasticsearchMapping {
         for(Field field : fields) {
 
             // Get the annotation from the field
-            ElasticsearchType elasticsearchType = field.getAnnotation(ElasticsearchType.class);
+            ESMappingProperties elasticsearchType = field.getAnnotation(ESMappingProperties.class);
 
             // Skip over the field is not annotated
             if(elasticsearchType == null)
@@ -113,9 +125,9 @@ public abstract class ElasticsearchMapping {
             boolean isArray = false;
             Class<?> childClass = null;
 
-            if(elasticsearchType.type().equals(FieldType.GEO_POINT) ||
-                    elasticsearchType.type().equals(FieldType.OBJECT) ||
-                    elasticsearchType.type().equals(FieldType.NESTED)) {
+            if(elasticsearchType.type().equals(FieldDatatype.GEO_POINT) ||
+                    elasticsearchType.type().equals(FieldDatatype.OBJECT) ||
+                    elasticsearchType.type().equals(FieldDatatype.NESTED)) {
 
                 // If it is an array we need the component type
                 isArray = field.getType().isArray();
@@ -166,13 +178,13 @@ public abstract class ElasticsearchMapping {
     }
 
 
-    private static Map<String, ElasticsearchNodeMetadata> getElasticsearchSystemFieldsMetadata(final ElasticsearchField[] systemFields) {
+    private static Map<String, ElasticsearchNodeMetadata> getElasticsearchSystemFieldsMetadata(final ESMetaField[] systemFields) {
 
         Map<String, ElasticsearchNodeMetadata> elasticsearchFieldMappings = new HashMap<>();
 
         // Add the system fields
         if(systemFields != null)
-            for (ElasticsearchField systemField : systemFields){
+            for (ESMetaField systemField : systemFields){
 
                 ElasticsearchNodeMetadata metadata = new ElasticsearchNodeMetadata(
                         systemField._fieldName().toString(),
@@ -185,7 +197,17 @@ public abstract class ElasticsearchMapping {
 
         return elasticsearchFieldMappings;
     }
-
+//    private static Map<String, ElasticsearchDynamicTemplate> getElasticsearchDynamicTemplates(final DynamicTemplates[] dynamicTemplates) {
+//    	 final Map<String, ElasticsearchDynamicTemplate> elasticsearchFieldMappings = new HashMap<>();
+//
+//         if(dynamicTemplates == null||dynamicTemplates.length==0)
+//             return elasticsearchFieldMappings;
+//         for(DynamicTemplates template :dynamicTemplates){
+//        	 ElasticsearchDynamicTemplate dynamictemplate = new ElasticsearchDynamicTemplate(template._name(), template);
+//        	 elasticsearchFieldMappings.put(template._name(), dynamictemplate);
+//         }
+//         return elasticsearchFieldMappings;
+//    }
     /**
      * Get the document and field metadata associated with this mapping by class.
      * @param clazz The class to inspect.
@@ -194,8 +216,8 @@ public abstract class ElasticsearchMapping {
     public static ElasticsearchDocumentMetadata get(final Class<?> clazz) {
 
         // Check the cache to see if we have already parsed this reference.
-        if(mappingCache.containsKey(clazz))
-            return mappingCache.get(clazz);
+        if(mappingCache.containsKey(clazz.getName()))
+            return mappingCache.get(clazz.getName());
 
         // Get the annotation.
         ElasticsearchDocument elasticsearchDocument = getElasticsearchType(clazz);
@@ -217,16 +239,103 @@ public abstract class ElasticsearchMapping {
                 elasticsearchDocument,
                 getElasticsearchFieldsMetadata(clazz),
                 getElasticsearchSystemFieldsMetadata(elasticsearchDocument._elasticsearchFields()),
+                /*getElasticsearchDynamicTemplates(elasticsearchDocument.dynamic_templates()),*/
+                getElasticsearchAliases(clazz),
                 elasticsearchIndexMetadata
         );
 
         // Add this item to the local cache for fast lookup.
-        mappingCache.put(clazz, documentMetadata );
+        mappingCache.put(clazz.getName(), documentMetadata );
 
         // Return the reference.
-        return mappingCache.get(clazz);
+        return mappingCache.get(clazz.getName());
     }
-
+    /**
+     * Get the document and field metadata associated with this mapping by class.
+     * @param clazz The class to inspect.
+     * @return Returns the meta data used to describe this entity.
+     * 多线程下不同步会导致date参数重复出现，所以该方法必须同步
+     */
+//    public synchronized static ElasticsearchDocumentMetadata get(final Class<?> clazz,final Date date) {
+//    	
+//    	// Check the cache to see if we have already parsed this reference.
+//    	if(mappingCache.containsKey(clazz.getName()+Constants.format.format(date)))
+//    		return mappingCache.get(clazz.getName()+Constants.format.format(date));
+//    	
+//    	// Get the annotation.
+//    	ElasticsearchDocument elasticsearchDocument = getElasticsearchType(clazz);
+//    	
+//    	if(elasticsearchDocument == null)
+//    		return null;
+//    	
+//    	// If a class is provided to get the index information from then use that else try to see if the current class has the ES index annotation set.
+//    	ElasticsearchIndexMetadata elasticsearchIndexMetadata = (elasticsearchDocument.index().isAssignableFrom(Empty.class))
+//    			? getIndex(clazz,date)
+//    					: getIndex(elasticsearchDocument.index(),date);
+//    			
+//    			if(elasticsearchIndexMetadata == null) {
+//    				throw new RuntimeException("No ElasticsearchIndex annotation found containing the index information for " + elasticsearchDocument.type());
+//    			}
+//    			
+//    			ElasticsearchDocumentMetadata documentMetadata = new ElasticsearchDocumentMetadata(
+//    					clazz,
+//    					elasticsearchDocument,
+//    					getElasticsearchFieldsMetadata(clazz),
+//    					getElasticsearchSystemFieldsMetadata(elasticsearchDocument._elasticsearchFields()),
+//    					/*getElasticsearchDynamicTemplates(elasticsearchDocument.dynamic_templates()),*/
+//    					getElasticsearchAliases(clazz),
+//    					elasticsearchIndexMetadata
+//    					);
+//    			
+//    			// Add this item to the local cache for fast lookup.
+//    			mappingCache.put(clazz.getName()+Constants.format.format(date), documentMetadata );
+//    			
+//    			// Return the reference.
+//    			return mappingCache.get(clazz.getName()+Constants.format.format(date));
+//    }
+    /**
+     * Get the document and field metadata associated with this mapping by class.
+     * @param clazz The class to inspect.
+     * @return Returns the meta data used to describe this entity.
+     * 多线程下不同步会导致date参数重复出现，所以该方法必须同步
+     */
+//    public synchronized static ElasticsearchDocumentMetadata get(final Class<?> clazz,final String date) {
+//    	
+//    	// Check the cache to see if we have already parsed this reference.
+//    	if(mappingCache.containsKey(clazz.getName()+date))
+//    		return mappingCache.get(clazz.getName()+date);
+//    	
+//    	// Get the annotation.
+//    	ElasticsearchDocument elasticsearchDocument = getElasticsearchType(clazz);
+//    	
+//    	if(elasticsearchDocument == null)
+//    		return null;
+//    	
+//    	// If a class is provided to get the index information from then use that else try to see if the current class has the ES index annotation set.
+//    	ElasticsearchIndexMetadata elasticsearchIndexMetadata = (elasticsearchDocument.index().isAssignableFrom(Empty.class))
+//    			? getIndex(clazz,date)
+//    					: getIndex(elasticsearchDocument.index(),date);
+//    			
+//    			if(elasticsearchIndexMetadata == null) {
+//    				throw new RuntimeException("No ElasticsearchIndex annotation found containing the index information for " + elasticsearchDocument.type());
+//    			}
+//    			
+//    			ElasticsearchDocumentMetadata documentMetadata = new ElasticsearchDocumentMetadata(
+//    					clazz,
+//    					elasticsearchDocument,
+//    					getElasticsearchFieldsMetadata(clazz),
+//    					getElasticsearchSystemFieldsMetadata(elasticsearchDocument._elasticsearchFields()),
+//    					/*getElasticsearchDynamicTemplates(elasticsearchDocument.dynamic_templates()),*/
+//    					getElasticsearchAliases(clazz),
+//    					elasticsearchIndexMetadata
+//    					);
+//    			
+//    			// Add this item to the local cache for fast lookup.
+//    			mappingCache.put(clazz.getName()+date, documentMetadata );
+//    			
+//    			// Return the reference.
+//    			return mappingCache.get(clazz.getName()+date);
+//    }
     /**
      * Get the document and field metadata associated with this mapping by class.
      * @param clazz The class to inspect.
@@ -237,14 +346,43 @@ public abstract class ElasticsearchMapping {
         // Get the annotation.
         ElasticsearchIndexMetadata elasticsearchIndex = new ElasticsearchIndexMetadata(clazz, getElasticsearchIndex(clazz));
 
-        if(elasticsearchIndex == null)
-            return null;
-
         // Add this item to the local cache for fast lookup.
         if(!indexCache.containsKey(elasticsearchIndex.getIndexName()))
             indexCache.put(elasticsearchIndex.getIndexName(), elasticsearchIndex );
 
         // Return the reference.
         return elasticsearchIndex;
+    }
+    public static ElasticsearchIndexMetadata getIndex(Class<?> clazz,Date date) {
+    	
+    	// Get the annotation.
+    	ElasticsearchIndexMetadata elasticsearchIndex = new ElasticsearchIndexMetadata(clazz, getElasticsearchIndex(clazz),date);
+    	
+    	// Add this item to the local cache for fast lookup.
+    	if(!indexCache.containsKey(elasticsearchIndex.getIndexName()))
+    		indexCache.put(elasticsearchIndex.getIndexName(), elasticsearchIndex );
+    	
+    	// Return the reference.
+    	return elasticsearchIndex;
+    }
+    public static ElasticsearchIndexMetadata getIndex(Class<?> clazz,String date) {
+    	
+    	// Get the annotation.
+    	ElasticsearchIndexMetadata elasticsearchIndex = new ElasticsearchIndexMetadata(clazz, getElasticsearchIndex(clazz),date);
+    	
+    	// Add this item to the local cache for fast lookup.
+    	if(!indexCache.containsKey(elasticsearchIndex.getIndexName()))
+    		indexCache.put(elasticsearchIndex.getIndexName(), elasticsearchIndex );
+    	
+    	// Return the reference.
+    	return elasticsearchIndex;
+    }
+    public void clearCache(){
+    	indexCache.clear();
+    	mappingCache.clear();
+    }
+    public static boolean clearIndexCache(){
+    	indexCache.clear();
+    	return indexCache.size()==0;
     }
 }

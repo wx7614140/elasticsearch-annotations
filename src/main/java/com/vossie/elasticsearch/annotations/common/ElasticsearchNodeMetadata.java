@@ -1,7 +1,7 @@
 package com.vossie.elasticsearch.annotations.common;
 
-import com.vossie.elasticsearch.annotations.ElasticsearchField;
-import com.vossie.elasticsearch.annotations.ElasticsearchType;
+import com.vossie.elasticsearch.annotations.ESMetaField;
+import com.vossie.elasticsearch.annotations.mappingparameters.ESMappingProperties;
 import com.vossie.elasticsearch.annotations.util.AttributeNameHelper;
 import org.springframework.core.annotation.AnnotationUtils;
 
@@ -21,11 +21,11 @@ public class ElasticsearchNodeMetadata {
     private boolean isArray;
     private String fieldName;
     private Map<String, Object> attributes;
-    private ElasticsearchType elasticsearchType;
-    private ElasticsearchField elasticsearchField;
+    private ESMappingProperties elasticsearchType;
+    private ESMetaField elasticsearchField;
     private Map<String, ElasticsearchNodeMetadata> children;
 
-    public ElasticsearchNodeMetadata(String fieldName, ElasticsearchType elasticsearchType, boolean isArray,
+    public ElasticsearchNodeMetadata(String fieldName, ESMappingProperties elasticsearchType, boolean isArray,
                                      Map<String, ElasticsearchNodeMetadata> children)  {
 
         this.isArray = isArray;
@@ -36,7 +36,7 @@ public class ElasticsearchNodeMetadata {
         setAttributes(this.elasticsearchType);
     }
 
-    public ElasticsearchNodeMetadata(String fieldName, ElasticsearchField elasticsearchFieldField,
+    public ElasticsearchNodeMetadata(String fieldName, ESMetaField elasticsearchFieldField,
                                      Map<String, ElasticsearchNodeMetadata> children)  {
 
         this.fieldName = fieldName;

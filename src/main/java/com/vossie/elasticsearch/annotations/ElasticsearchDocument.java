@@ -1,8 +1,12 @@
 package com.vossie.elasticsearch.annotations;
 
-import com.vossie.elasticsearch.annotations.common.Empty;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import java.lang.annotation.*;
+import com.vossie.elasticsearch.annotations.common.Empty;
 
 /**
  * Copyright © 2013 Carel Vosloo.
@@ -33,5 +37,6 @@ public @interface ElasticsearchDocument {
      * http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/mapping-fields.html
      * @return
      */
-    public ElasticsearchField[] _elasticsearchFields() default {};
+    public ESMetaField[] _elasticsearchFields() default {};
+//    public DynamicTemplates[] dynamic_templates() default {};
 }

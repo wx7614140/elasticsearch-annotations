@@ -1,8 +1,12 @@
 package com.vossie.elasticsearch.annotations.common;
 
-import com.vossie.elasticsearch.annotations.ElasticsearchIndex;
-import com.vossie.elasticsearch.annotations.enums.SettingsFormat;
+import java.util.Date;
+
 import org.elasticsearch.common.settings.Settings;
+
+import com.vossie.elasticsearch.annotations.ESIndex;
+import com.vossie.elasticsearch.annotations.enums.SettingsFormat;
+import com.vossie.elasticsearch.constants.Constants;
 
 /**
  * Copyright (c) 2014 Carel Vosloo <code@bronzegate.com>
@@ -11,18 +15,29 @@ import org.elasticsearch.common.settings.Settings;
  */
 public class ElasticsearchIndexMetadata {
 
-    public ElasticsearchIndexMetadata(Class<?> clazz, ElasticsearchIndex elasticsearchIndex) {
-
-        this.clazz = clazz;
-        this.indexName = (elasticsearchIndex ==null) ? null : elasticsearchIndex._indexName();
-        this.settings = (elasticsearchIndex ==null) ? null : loadSettings(elasticsearchIndex.settingsFormat(), elasticsearchIndex.settings());
-    }
-
     private final String indexName;
 
     private final Settings.Builder settings;
 
     private final Class<?> clazz;
+    public ElasticsearchIndexMetadata(Class<?> clazz, ESIndex elasticsearchIndex) {
+        this.clazz = clazz;
+        this.indexName = (elasticsearchIndex ==null) ? null : elasticsearchIndex._indexName().toLowerCase();
+        this.settings = (elasticsearchIndex ==null) ? null : loadSettings(elasticsearchIndex.settingsFormat(), elasticsearchIndex.settings());
+    }
+    public ElasticsearchIndexMetadata(Class<?> clazz, ESIndex elasticsearchIndex,Date date) {
+    	this.clazz = clazz;
+    	this.indexName = (elasticsearchIndex ==null) ? null : elasticsearchIndex._indexName().toLowerCase()
+    			.indexOf(Constants.index_name_date_format)==-1?
+    					elasticsearchIndex._indexName():
+    						elasticsearchIndex._indexName().replace(Constants.index_name_date_format, Constants.format.format(date)).toLowerCase();
+    					this.settings = (elasticsearchIndex ==null) ? null : loadSettings(elasticsearchIndex.settingsFormat(), elasticsearchIndex.settings());
+    }
+    public ElasticsearchIndexMetadata(Class<?> clazz, ESIndex elasticsearchIndex,String date) {
+    	this.clazz = clazz;
+    	this.indexName = (elasticsearchIndex ==null) ? null : elasticsearchIndex._indexName().toLowerCase()+"-"+date;
+		this.settings = (elasticsearchIndex ==null) ? null : loadSettings(elasticsearchIndex.settingsFormat(), elasticsearchIndex.settings());
+    }
 
     public Class<?> getClazz() {
         return clazz;
