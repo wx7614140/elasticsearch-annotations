@@ -1,10 +1,10 @@
 # elasticsearch-annotations
-
+(前排提示：测试提交，代码不能用的)
 Allows the creation of json mapping files based on class and field annotations.
-
+通过类和属性上的注解来创建json mapping
 This library can be used in any project which uses <a href="http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/mapping.html" target="_blank">elasticsearch mappings</a> for managing data in the search engine.
 
-Tested using Java 1.7 & Elasticsearch 0.95
+Tested using Java 1.7 & Elasticsearch 2.3.5
 
 
 ### Set Up
