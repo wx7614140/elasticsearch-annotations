@@ -18,13 +18,13 @@
 
     <scm>
         <url>
-            scm:git:git@github-build-elastic-annotations:vossie/elasticsearch-annotations.git
+            scm:git:git@github-build-elastic-annotations:wx7614140/elasticsearch-annotations.git
         </url>
         <connection>
-            scm:git:git@github-build-elastic-annotations:vossie/elasticsearch-annotations.git
+            scm:git:git@github-build-elastic-annotations:wx7614140/elasticsearch-annotations.git
         </connection>
         <developerConnection>
-            scm:git:git@github-build-elastic-annotations:vossie/elasticsearch-annotations.git
+            scm:git:git@github-build-elastic-annotations:wx7614140/elasticsearch-annotations.git
         </developerConnection>
         <tag>HEAD</tag>
     </scm>
@@ -67,7 +67,7 @@
         <dependency>
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch</artifactId>
-            <version>2.0.0</version>
+            <version>2.3.5</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
